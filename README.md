@@ -1,0 +1,108 @@
+﻿# Stack-Overflow-Tag-Predictor
+<div align="center">
+
+<div align="center" style="background-color:white; padding:30px; border-radius:10px;">
+  <img src="https://i.sstatic.net/pIgix.png" 
+       alt="Stack Overflow Logo" 
+       width="350">
+</div>
+**A multi-label machine learning pipeline that predicts relevant tags for a Stack Overflow question from its title and body.**
+
+[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![NLTK](https://img.shields.io/badge/NLTK-NLP-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.nltk.org/)
+[![Pandas](https://img.shields.io/badge/Pandas-Data-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![Kaggle](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white)](https://www.kaggle.com/competitions/facebook-recruiting-iii-keyword-extraction)
+[![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-F37626?style=for-the-badge&logo=jupyter&logoColor=white)](https://jupyter.org/)
+
+</div>
+
+---
+
+## 📌 Overview
+
+When a developer posts a question on Stack Overflow, tags decide **who sees it** and **how fast it gets a good answer**. This project treats tag suggestion as a **multi-label text classification** problem: given a question's `Title` and `Body`, predict the set of tags (e.g. `python`, `pandas`, `sql`) that best describe it.
+
+**Dataset:** [Facebook Recruiting III – Keyword Extraction](https://www.kaggle.com/competitions/facebook-recruiting-iii-keyword-extraction) (Kaggle)
+
+---
+
+## 🧭 Pipeline
+
+The repository is organized as a three-stage pipeline, each stage in its own folder:
+
+```
+Stack-Overflow-Tag-Predictor/
+├── Data Sets/
+│   ├── Cleaning_Data.ipynb     # Download, dedupe & sample the raw Kaggle data
+│   └── df_final.csv             # Cleaned, sampled dataset (10,000 questions)
+├── Data Analysis/
+│   ├── Pre_Processed.ipynb      # Text cleaning, EDA, tag encoding, TF-IDF, train/cv/test split
+│   ├── x_train.npz, x_cv.npz, x_test.npz     # TF-IDF feature matrices
+│   └── y_train_df.csv, y_cv_df.csv, y_test_df.csv   # Multi-label binarized targets
+├── models/
+│   └── Models.ipynb             # Model training & evaluation
+└── README.md
+```
+
+### 1️⃣ Data Sets — `Cleaning_Data.ipynb`
+
+- Downloads the competition data straight from Kaggle with `opendatasets`.
+- Loads `Train.csv`, drops rows with missing `Tags`.
+- Loads the data into a local **SQLite** database (`stack.db`) in chunks, with an index on `Title` for fast lookups.
+- Drops duplicate questions (by `Title`) and takes a **random sample of 10,000 rows** for tractable experimentation, saved as `df_final.csv`.
+
+### 2️⃣ Data Analysis — `Pre_Processed.ipynb`
+
+- **EDA on tags:** counts how often each tag occurs and visualizes the distribution, keeping only tags that occur **≥ 10 times** to reduce label sparsity.
+- **Text cleaning:** strips HTML tags from `Body`, removes English stopwords (via `nltk`) from both `Title` and `Body`.
+- **Tag encoding:** splits the tag strings into lists and encodes them with `MultiLabelBinarizer` into a multi-hot label matrix.
+- **Feature engineering:** concatenates `Title` + `Body` and vectorizes the text with `TfidfVectorizer`.
+- **Splitting:** splits the data into **train / cross-validation / test** sets (80/10/10-style split via two `train_test_split` calls) and persists the TF-IDF matrices (`.npz`) and label frames (`.csv`) for the modeling stage.
+
+### 3️⃣ Models — `Models.ipynb`
+
+Loads the pre-computed TF-IDF features and labels, then trains and compares several multi-label classifiers wrapped in `OneVsRestClassifier`:
+
+| Model | Notes |
+|---|---|
+| **LinearSVC** | Tuned over `C ∈ {0.01, 0.1, 1, 5, 10}` via `GridSearchCV` (scoring = `f1_micro`, 3-fold CV) |
+| **SGDClassifier** | Log loss, L1 penalty, `alpha=1e-5` |
+| **Logistic Regression** | `max_iter=1000` |
+
+Models are evaluated with **F1 score (micro/macro)**, **accuracy**, **hamming loss**, and `classification_report`.
+
+---
+
+## ▶️ Getting Started
+
+```bash
+git clone https://github.com/vishalbhx/Stack-Overflow-Tag-Predictor.git
+cd Stack-Overflow-Tag-Predictor
+```
+
+Run the notebooks in order:
+
+1. `Data Sets/Cleaning_Data.ipynb` — fetches and prepares the raw data (requires a Kaggle API key for `opendatasets`).
+2. `Data Analysis/Pre_Processed.ipynb` — cleans text, encodes tags, builds TF-IDF features, and creates the train/cv/test splits.
+3. `models/Models.ipynb` — trains and evaluates the classifiers on the pre-built features.
+
+> **Note:** Steps 2 and 3 already ship with pre-computed features (`.npz`) and labels (`.csv`) in this repo, so you can jump straight to `models/Models.ipynb` if you just want to train/evaluate models.
+
+---
+
+## 🧰 Tech Stack
+
+- **Language:** Python
+- **Data handling:** Pandas, NumPy, SQLite
+- **NLP:** NLTK (stopwords), regex-based HTML cleaning, TF-IDF (`scikit-learn`)
+- **Modeling:** `OneVsRestClassifier` with `LinearSVC`, `SGDClassifier`, and `LogisticRegression`
+- **Evaluation:** F1 (micro/macro), accuracy, hamming loss
+
+---
+
+<div align="center">
+
+**For developers, by developers 👨‍💻**
+
+</div>
